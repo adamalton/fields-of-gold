@@ -4,27 +4,28 @@ from django.test import TestCase
 from .fields import SmartOneToOneField
 
 
-class Dog(models.Model):
+class Flag(models.Model):
     pass
 
-class Cat(models.Model):
-    pass
+class Flagpole(models.Model):
+    """ A pole on which a flag sits. """
+    flag = SmartOneToOneField(Flag)
 
-class Human(models.Model):
-    """ Someone who has pets.  Always one cat and one dog.
-        Note: there are sometimes stray dogs and cats which
-        don't belong to a human.  These can cause Human.DoesNotExist
-        when you try to find the owner.
+class Country(models.Model):
+    """ A country, which always has a flag.  Although
+        occasionally you can find a flag which doesn't
+        belong to a country, so flag.country will raise
+        DoesNotExist.
     """
-    dog = SmartOneToOneField(Dog)
+    flag = SmartOneToOneField(Flag)
 
 
 
 class UsefulTestSTuff(object):
     """ Mixin class with handy methods for tests. """
     
-    def reload_from_db(self, human):
-        return human.__class__.objects.get(pk=human.pk)
+    def reload_from_db(self, country):
+        return country.__class__.objects.get(pk=country.pk)
 
 
 
@@ -33,18 +34,18 @@ class SmartOneToOneFieldTest(TestCase, UsefulTestSTuff):
     
     def test_basic_functionality(self):
         #Create 2 objects with one pointing to the other
-        dog = Dog.objects.create()
-        human = Human.objects.create(
-            dog=dog
+        flag = Flag.objects.create()
+        country = Country.objects.create(
+            flag=flag
         )
         #Check that they point to each other
-        self.assertEqual(human.dog, dog)
-        self.assertEqual(dog.human, human)
+        self.assertEqual(country.flag, flag)
+        self.assertEqual(flag.country, country)
         #reload the object from the DB and check that everything is still good
-        human = self.reload_from_db(human)
-        dog = self.reload_from_db(dog)
-        self.assertEqual(human.dog, dog)
-        self.assertEqual(dog.human, human)
+        country = self.reload_from_db(country)
+        flag = self.reload_from_db(flag)
+        self.assertEqual(country.flag, flag)
+        self.assertEqual(flag.country, country)
     
     
     def test_raises_if_does_not_exist_but_not_once_set(self):
@@ -52,15 +53,24 @@ class SmartOneToOneFieldTest(TestCase, UsefulTestSTuff):
             when the object doesn't exist, but that once it has been
             set it doesn't raise it again.
         """
-        #Create a Dog object, but don't have a Human pointing at it,
-        #so when we access dog.human it will raise DoesNotExist
-        dog = Dog.objects.create()
-        self.assertRaises(Human.DoesNotExist, getattr, dog, 'human')
-        #Now create a Human that points at our Dog object...
-        human = Human.objects.create(dog=dog)
-        dog = self.reload_from_db(dog)
-        #Accessing dog.human should no longer raise...
-        self.assertEqual(dog.human, human)
+        #Create a Flag object, but don't have a Country pointing at it,
+        #so when we access flag.country it will raise DoesNotExist
+        flag = Flag.objects.create()
+        self.assertRaises(Country.DoesNotExist, getattr, flag, 'country')
+        #Now create a Country that points at our Flag object...
+        country = Country.objects.create(flag=flag)
+        flag = self.reload_from_db(flag)
+        #Accessing flag.country should no longer raise...
+        self.assertEqual(flag.country, country)
+    
+    
+    def test_correct_exceptions_are_remembered(self):
+        """ Test that when we store the previously raised exceptions
+            that exceptions for different fields are not confused.
+        """
+        flag = Flag.objects.create()
+        self.assertRaises(Country.DoesNotExist, getattr, flag, 'country')
+        self.assertRaises(Flagpole.DoesNotExist, getattr, flag, 'flagpole')
 
 
 
