@@ -18,7 +18,7 @@ class SmartSingleRelatedObjectDescriptor(SingleRelatedObjectDescriptor):
             the DoesNotExist exception if we get one.
         """
         if getattr(instance, self.cache_name, None) is None:
-            previous_exc = getattr(instance, '_does_not_exist_exception', None)
+            previous_exc = getattr(instance, self.get_exception_cache_name(), None)
             if previous_exc:
                 logging.debug('Saved a DB call for %s', self.cache_name)
                 raise previous_exc
@@ -26,8 +26,12 @@ class SmartSingleRelatedObjectDescriptor(SingleRelatedObjectDescriptor):
             #This is effectively super(), but because it's __get__ it's a little bit magical...
             return SingleRelatedObjectDescriptor.__get__(self, instance, instance_type)
         except self.related.model.DoesNotExist, e:
-            instance._does_not_exist_exception = e
+            setattr(instance, self.get_exception_cache_name(), e)
             raise
+    
+    
+    def get_exception_cache_name(self):
+        return "%s_does_not_exist_exception" % self.cache_name
 
 
 
