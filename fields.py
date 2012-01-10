@@ -31,7 +31,7 @@ class SmartSingleRelatedObjectDescriptor(SingleRelatedObjectDescriptor):
     
     
     def get_exception_cache_name(self):
-        return "%s_does_not_exist_exception" % self.cache_name
+        return "_%s_does_not_exist_exception_cache" % self.related.get_accessor_name()
 
 
 
