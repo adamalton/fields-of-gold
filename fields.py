@@ -1,5 +1,3 @@
-import logging
-
 from django.db.models import OneToOneField
 from django.db.models.fields.related import SingleRelatedObjectDescriptor
 
@@ -20,7 +18,6 @@ class SmartSingleRelatedObjectDescriptor(SingleRelatedObjectDescriptor):
         if getattr(instance, self.cache_name, None) is None:
             previous_exc = getattr(instance, self.get_exception_cache_name(), None)
             if previous_exc:
-                logging.debug('Saved a DB call for %s', self.cache_name)
                 raise previous_exc
         try:
             #This is effectively super(), but because it's __get__ it's a little bit magical...
