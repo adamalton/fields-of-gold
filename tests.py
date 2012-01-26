@@ -71,6 +71,19 @@ class SmartOneToOneFieldTest(TestCase, UsefulTestSTuff):
         flag = Flag.objects.create()
         self.assertRaises(Country.DoesNotExist, getattr, flag, 'country')
         self.assertRaises(Flagpole.DoesNotExist, getattr, flag, 'flagpole')
+    
+    
+    def test_remembered_exceptions_are_cleared_when_the_reverse_relationship_is_set(self):
+        #Make a flag
+        flag = Flag.objects.create()
+        #Now access flag.flagpole, so that the DoesNotExist exception gets cached
+        self.assertRaises(Flagpole.DoesNotExist, getattr, flag, 'flagpole')
+        #Now create a Flagpole and set its flag to the Flag that we created
+        #Note that we are setting the relationship from the reverse end
+        flagpole = Flagpole()
+        flagpole.flag = flag
+        flagpole.save()
+        self.assertEqual(flag.flagpole, flagpole)
 
 
 

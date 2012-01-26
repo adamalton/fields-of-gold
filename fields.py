@@ -1,5 +1,5 @@
 from django.db.models import OneToOneField
-from django.db.models.fields.related import SingleRelatedObjectDescriptor
+from django.db.models.fields.related import SingleRelatedObjectDescriptor, ReverseSingleRelatedObjectDescriptor
 
 
 class SmartSingleRelatedObjectDescriptor(SingleRelatedObjectDescriptor):
@@ -29,6 +29,33 @@ class SmartSingleRelatedObjectDescriptor(SingleRelatedObjectDescriptor):
     
     def get_exception_cache_name(self):
         return "_%s_does_not_exist_exception_cache" % self.related.get_accessor_name()
+
+
+class SmartReverseSingleRelatedObjectDescriptor(ReverseSingleRelatedObjectDescriptor):
+    """ Custom descriptor for the value of the SmartOneToOneField on the model which
+        has the field on it.  Deals with clearing the exception cache when the field
+        value is set (from the reverse side of the relationship).
+        SmartSingleRelatedObjectDescriptor deals with clearing it when the value is
+        set by doing a.b_name=b, and this descriptor deals with clearing it when the
+        value is set by doing b.a_name=a.
+    """
+    
+    def __set__(self, instance, value):
+        self.delete_reverse_exception_cache(value)
+        #This is effectively super(), but because it's a descriptor it's a little bit magical...
+        return ReverseSingleRelatedObjectDescriptor.__set__(self, instance, value)
+    
+    
+    def delete_reverse_exception_cache(self, related_instance):
+        exception_cache_attr_name = self.get_reverse_exception_cache_name()
+        try:
+            delattr(related_instance, exception_cache_attr_name)
+        except AttributeError:
+            pass
+    
+    
+    def get_reverse_exception_cache_name(self):
+        return "_%s_does_not_exist_exception_cache" % self.field.related.get_accessor_name()
 
 
 
@@ -86,11 +113,12 @@ class SmartOneToOneField(OneToOneField):
             related.get_accessor_name(),
             SmartSingleRelatedObjectDescriptor(related)
         )
-
-
-
-
-
+    
+    
+    def contribute_to_class(self, cls, name):
+        super(SmartOneToOneField, self).contribute_to_class(cls, name)
+        #Override the normal ReverseSingleRelatedObjectDescriptor with our magic one
+        setattr(cls, self.name, SmartReverseSingleRelatedObjectDescriptor(self))
 
 
 
