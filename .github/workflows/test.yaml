@@ -20,7 +20,7 @@ jobs:
       #   uses: docker/setup-buildx-action@v2
 
       - name: Build Docker image
-        run: ./build.sh
+        run: ./scripts/build.sh
 
       - name: Run tests in Docker container
-        run: ./test.sh
+        run: .scripts/test.sh
