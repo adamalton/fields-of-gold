@@ -39,6 +39,25 @@ class TypedJSONFieldTestCase(ExtraModelsTestCase):
         self.assertEqual(instance.typed_field.my_int, 1)
         self.assertEqual(instance.typed_field.my_str, "not cake")
 
+    def test_data_set_as_dict_is_converted(self):
+        """ If the field's attribute value is set as a python dict, it should be converted to the
+            Pydantic model type.
+        """
+        instance = SimpleTypedJSONModel()
+        instance.typed_field = {"my_int": 1, "my_str": "hello"}
+        instance.save()
+        # As is the case with other Django fields (e.g. BooleanField), setting a value which is
+        # valid but which is not the same type (e.g. setting 1 instead of True) will not get coerced
+        # to the correct type simply by saving. It only gets coerced when fetching from the DB.
+        instance.refresh_from_db()
+        self.assertIsInstance(instance.typed_field, SimpleType)
+
+    def test_invalid_data_raises_validation_error(self):
+        """ Calling full_clean with invalid data should raise a Django ValidationError. """
+        instance = SimpleTypedJSONModel()
+        instance.typed_field = {"my_int": "Cannot be an int", "my_str": "whatever"}
+        self.assertRaisesRegex(ValidationError, r"typed_field.+my_int", instance.full_clean)
+
     def test_non_nullable_field_raises_validation_error(self):
         instance = SimpleTypedJSONModel()
         self.assertRaisesRegex(

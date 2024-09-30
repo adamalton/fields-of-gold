@@ -72,7 +72,7 @@ class TypedJSONField(JSONField):
             super().validate(value, model_instance)
             if value is not None:
                 with convert_validation_error():
-                    self.type.model_validate_json(value)
+                    self.type(**value)  # Will raise if data is invalid
 
     # def pre_save(self, model_instance, add):
     #     """ Enforce validation here??. """
