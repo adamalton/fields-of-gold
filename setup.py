@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 LONG_DESCRIPTION = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
 
-VERSION = os.environ.get("CI_COMMIT_TAG", "v0.1.0").lstrip("v")
+VERSION = os.environ.get("GITHUB_REF", "v0.1.0").lstrip("v")
 
 setup(
     name="fields-of-gold",
