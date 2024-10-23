@@ -1,11 +1,20 @@
 # Standard library
 from contextlib import contextmanager
+import json
 
 # Third Party
 from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
 import pydantic
+
+
+class PydanticJSONEncoder(json.JSONEncoder):
+
+    def default(self, o):
+        if isinstance(o, pydantic.BaseModel):
+            return o.model_dump(mode="json")
+        return super().default(o)
 
 
 class TypedJSONField(JSONField):
@@ -15,9 +24,9 @@ class TypedJSONField(JSONField):
 
     ]
 
-    def __init__(self, *args, type=None, **kwargs):
+    def __init__(self, *args, type=None, encoder=PydanticJSONEncoder, **kwargs):
         self.type = type
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **{"encoder": encoder, **kwargs})
 
     def check(self, **kwargs):
         return [
