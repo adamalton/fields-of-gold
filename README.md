@@ -46,6 +46,33 @@ instance.full_clean()
 instance.save()
 ```
 
+#### Handling existing data
+
+If you've already got data in your database which doesn't conform to the Pydantic model schema that
+you've defined then when you fetch a Django model instance from the database the field value will
+simply be set to the raw underlying JSON value rather than the Pydantic model instance.
+This allows you to still fetch the objects from your DB, and to fix the data. Here an example
+using the `MyType` and `MyModel` from above:
+
+```python
+
+obj = MyModel.objects.get()
+if not isinstnce(obj.typed_field, MyType):
+    # Invalid data, need to fix it:
+    if isinstance(obj.typed_field, dict):
+        if "my_int" not in obj.typed_field:
+            obj.typed_field["my_int"] = 0
+        if "my_str" not in obj.typed_field:
+            obj.typed_field["my_str"] = ""
+        # Note that leaving the data as a dict is fine, so long as it matches the schema of MyType
+    elif isinstance(obj.typed_field, list):
+        # Totally the wrong type of data
+        obj.typed_field = MyType()
+    obj.save()
+```
+
+You might want to handle existing invalid data in your model's `__init__` method.
+
 
 ### NullableOneToOneField
 

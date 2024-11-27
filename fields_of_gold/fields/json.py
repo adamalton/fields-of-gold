@@ -1,12 +1,16 @@
 # Standard library
 from contextlib import contextmanager
 import json
+import logging
 
 # Third Party
 from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
 import pydantic
+
+
+logger = logging.getLogger(__name__)
 
 
 class PydanticJSONEncoder(json.JSONEncoder):
@@ -65,7 +69,19 @@ class TypedJSONField(JSONField):
 
     def from_db_value(self, value, expression, connection):
         value = super().from_db_value(value, expression, connection)
-        return self.to_python(value)
+        try:
+            return self.to_python(value)
+        except ValidationError as error:
+            logger.warning(
+                "TypedJSONField got error loading value from DB for %s: %s. Raw data: %s",
+                self.type,
+                error,
+                value,
+            )
+            # If there's a problem with the existing data in the DB then we want to just return the
+            # raw JSON data as it is. If we don't do this, then bad existing data prevents the model
+            # instance from being loaded at all.
+            return value
 
     def validate(self, value, model_instance):
         """
