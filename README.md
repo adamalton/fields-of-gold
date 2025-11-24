@@ -23,7 +23,26 @@ The underlying storage uses the JSONField, but you can interact with the data vi
 Because the underlying storage is using JSON, you can swap out existing JSONFields for TypedJSONField without
 having to perform any manipulation to the stored data, so long as the existing data conforms to your Pydantic schema.
 
-Example usage:
+#### Definition
+
+```python
+TypedJSONField(
+    # The Pydantic model class of your data structure
+    type: type[pydantic.BaseModel],
+
+    # A JSON encoder class. The default uses `pydantic.BaseModel.model_dump(mode="json")`:
+    encoder: type[json.JSONEncoder] = PydanticJSONEncoder,
+
+    # Allows you to force validation of the data during save (rather than only during validation),
+    # raising IntegrityError for invalid data:
+    force_valid: bool = False,
+
+    # The other standard field kwargs, such as `null`, etc
+    **kwargs,
+)
+```
+
+#### Example usage:
 
 ```python
 from django.db import models

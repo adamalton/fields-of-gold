@@ -3,12 +3,13 @@ import datetime as dt
 
 # Third Party
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import IntegrityError, models
+from django.test import TestCase, TransactionTestCase
 import pydantic
 
 # Fields of gold
 from fields_of_gold import TypedJSONField
-from .base import ExtraModelsTestCase
+from .base import ExtraModelsMixin
 
 
 class SimpleType(pydantic.BaseModel):
@@ -26,17 +27,24 @@ class SimpleTypedJSONModel(models.Model):
 
 
 class TypeWithDateTimes(pydantic.BaseModel):
-    my_datetime: dt.datetime
+    datetime_field: dt.datetime
 
 
 class ModelWithDateTime(models.Model):
     class Meta:
         app_label = "fields_of_gold"
 
-    datetime_field = TypedJSONField(type=TypeWithDateTimes)
+    typed_field = TypedJSONField(type=TypeWithDateTimes)
 
 
-class TypedJSONFieldTestCase(ExtraModelsTestCase):
+class StrictModelWithDateTime(models.Model):
+    class Meta:
+        app_label = "fields_of_gold"
+
+    typed_field = TypedJSONField(type=TypeWithDateTimes, force_valid=True)
+
+
+class TypedJSONFieldTestCase(ExtraModelsMixin, TestCase):
     """Tests for the TypedJSONField."""
 
     test_models = [SimpleTypedJSONModel, ModelWithDateTime]
@@ -81,13 +89,36 @@ class TypedJSONFieldTestCase(ExtraModelsTestCase):
         """Regression test for an issue where modifying a field in the object and resaving would
         cause a a JSON encoding error.
         """
-        instance = ModelWithDateTime(datetime_field=TypeWithDateTimes(my_datetime=dt.datetime.now()))
+        instance = ModelWithDateTime(typed_field=TypeWithDateTimes(datetime_field=dt.datetime.now()))
         instance.save()
         instance.refresh_from_db()
-        self.assertIsInstance(instance.datetime_field, TypeWithDateTimes)
-        self.assertIsInstance(instance.datetime_field.my_datetime, dt.datetime)
-        instance.datetime_field.my_datetime = dt.datetime.now()
+        self.assertIsInstance(instance.typed_field, TypeWithDateTimes)
+        self.assertIsInstance(instance.typed_field.datetime_field, dt.datetime)
+        instance.typed_field.datetime_field = dt.datetime.now()
         instance.save()
         instance.refresh_from_db()
-        self.assertIsInstance(instance.datetime_field, TypeWithDateTimes)
-        self.assertIsInstance(instance.datetime_field.my_datetime, dt.datetime)
+        self.assertIsInstance(instance.typed_field, TypeWithDateTimes)
+        self.assertIsInstance(instance.typed_field.datetime_field, dt.datetime)
+
+
+# Separate test case for things which raise IntegrityError, as it screws the normal transaction-based test stuff
+class ForceValidTestCase(ExtraModelsMixin, TransactionTestCase):
+    test_models = [ModelWithDateTime, StrictModelWithDateTime]
+
+    def test_force_valid(self):
+        """Test the behaviour of the `force_valid` kwarg."""
+        instance = ModelWithDateTime(typed_field=TypeWithDateTimes(datetime_field=dt.datetime.now()))
+        # We have to modify the value afterwards to circumvent the Pydantic construction-time validation
+        instance.typed_field.datetime_field = None
+        # Without the `force_valid` kwarg, the save should be allowed
+        instance.save()
+        instance = StrictModelWithDateTime(typed_field=TypeWithDateTimes(datetime_field=dt.datetime.now()))
+        # We have to modify the value afterwards to circumvent the Pydantic construction-time validation
+        instance.typed_field.datetime_field = None
+        self.assertRaises(IntegrityError, instance.save)
+        # If we now populate the value, it should be save-able
+        instance.typed_field.datetime_field = dt.datetime.now()
+        instance.save()
+        instance.refresh_from_db()
+        self.assertIsInstance(instance.typed_field, TypeWithDateTimes)
+        self.assertIsInstance(instance.typed_field.datetime_field, dt.datetime)

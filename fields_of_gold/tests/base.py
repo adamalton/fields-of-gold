@@ -2,9 +2,10 @@
 from django.db import connection
 from django.test import TestCase
 
-class ExtraModelsTestCase(TestCase):
-    """ Test case that sets up and destroys DB table(s) for additional models that are used only
-        for the tests.
+
+class ExtraModelsMixin:
+    """Test case that sets up and destroys DB table(s) for additional models that are used only
+    for the tests.
     """
 
     test_models = []

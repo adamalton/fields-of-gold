@@ -6,6 +6,7 @@ import logging
 # Third Party
 from django.core import checks
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.db.models import JSONField
 import pydantic
 
@@ -25,8 +26,9 @@ class TypedJSONField(JSONField):
 
     default_validators = []
 
-    def __init__(self, *args, type=None, encoder=PydanticJSONEncoder, **kwargs):
+    def __init__(self, *args, type=None, encoder=PydanticJSONEncoder, force_valid=False, **kwargs):
         self.type = type
+        self.force_valid = force_valid
         super().__init__(*args, **{"encoder": encoder, **kwargs})
 
     def check(self, **kwargs):
@@ -82,7 +84,7 @@ class TypedJSONField(JSONField):
             # instance from being loaded at all.
             return value
 
-    def validate(self, value, model_instance):
+    def validate(self, value, model_instance, error_cls=ValidationError):
         """
         Validate value and raise ValidationError if necessary. Subclasses
         should override this to provide validation logic.
@@ -90,18 +92,21 @@ class TypedJSONField(JSONField):
         if isinstance(value, self.type):
             json_value = value.model_dump_json()
             super().validate(json_value, model_instance)
-            with convert_validation_error():
-                self.type.model_validate(value)
+            with convert_validation_error(error_cls):
+                # If we just do `self.type.model_validate(value)`, it doesn't catch some errors
+                self.type.model_validate_json(json_value)
         else:
             super().validate(value, model_instance)
             if value is not None:
-                with convert_validation_error():
+                with convert_validation_error(error_cls):
                     self.type(**value)  # Will raise if data is invalid
 
-    # def pre_save(self, model_instance, add):
-    #     """ Enforce validation here??. """
-    #     self.validate()
-    #     pass
+    def pre_save(self, model_instance, add):
+        """Enforce validation here??."""
+        if self.force_valid:
+            value = getattr(model_instance, self.attname)
+            self.validate(value, model_instance, error_cls=IntegrityError)
+        return super().pre_save(model_instance, add)
 
     # We might need to override this
     # def value_to_string(self, obj):
@@ -113,8 +118,8 @@ class TypedJSONField(JSONField):
 
 
 @contextmanager
-def convert_validation_error():
+def convert_validation_error(to_cls=ValidationError):
     try:
         yield
     except pydantic.ValidationError as error:
-        raise ValidationError(str(error)) from error
+        raise to_cls(str(error)) from error
