@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class PydanticJSONEncoder(json.JSONEncoder):
-
     def default(self, o):
         if isinstance(o, pydantic.BaseModel):
             return o.model_dump(mode="json")
@@ -22,11 +21,9 @@ class PydanticJSONEncoder(json.JSONEncoder):
 
 
 class TypedJSONField(JSONField):
-    """ A JSONField which can have an enforced schema using Pydantic models. """
+    """A JSONField which can have an enforced schema using Pydantic models."""
 
-    default_validators = [
-
-    ]
+    default_validators = []
 
     def __init__(self, *args, type=None, encoder=PydanticJSONEncoder, **kwargs):
         self.type = type
@@ -40,11 +37,13 @@ class TypedJSONField(JSONField):
 
     def _check_type(self):
         if not issubclass(self.type, pydantic.BaseModel):
-            return [checks.Error(
-                f"'type' argument must be a Pydantic model class, not {type(self.type)}.",
-                obj=self,
-                id="fields_of_gold.E001",
-            )]
+            return [
+                checks.Error(
+                    f"'type' argument must be a Pydantic model class, not {type(self.type)}.",
+                    obj=self,
+                    id="fields_of_gold.E001",
+                )
+            ]
         return []
 
     def deconstruct(self):

@@ -16,7 +16,6 @@ class SimpleType(pydantic.BaseModel):
 
 
 class SimpleTypedJSONModel(models.Model):
-
     class Meta:
         app_label = "fields_of_gold"
 
@@ -24,7 +23,7 @@ class SimpleTypedJSONModel(models.Model):
 
 
 class TypedJSONFieldTestCase(ExtraModelsTestCase):
-    """ Tests for the TypedJSONField. """
+    """Tests for the TypedJSONField."""
 
     test_models = [SimpleTypedJSONModel]
 
@@ -40,8 +39,8 @@ class TypedJSONFieldTestCase(ExtraModelsTestCase):
         self.assertEqual(instance.typed_field.my_str, "not cake")
 
     def test_data_set_as_dict_is_converted(self):
-        """ If the field's attribute value is set as a python dict, it should be converted to the
-            Pydantic model type.
+        """If the field's attribute value is set as a python dict, it should be converted to the
+        Pydantic model type.
         """
         instance = SimpleTypedJSONModel()
         instance.typed_field = {"my_int": 1, "my_str": "hello"}
@@ -53,15 +52,13 @@ class TypedJSONFieldTestCase(ExtraModelsTestCase):
         self.assertIsInstance(instance.typed_field, SimpleType)
 
     def test_invalid_data_raises_validation_error(self):
-        """ Calling full_clean with invalid data should raise a Django ValidationError. """
+        """Calling full_clean with invalid data should raise a Django ValidationError."""
         instance = SimpleTypedJSONModel()
         instance.typed_field = {"my_int": "Cannot be an int", "my_str": "whatever"}
         self.assertRaisesRegex(ValidationError, r"typed_field.+my_int", instance.full_clean)
 
     def test_non_nullable_field_raises_validation_error(self):
         instance = SimpleTypedJSONModel()
-        self.assertRaisesRegex(
-            ValidationError, r"typed_field.+cannot be null", instance.full_clean
-        )
+        self.assertRaisesRegex(ValidationError, r"typed_field.+cannot be null", instance.full_clean)
         instance.typed_field = SimpleType(my_int=1, my_str="cake")
         instance.full_clean()
