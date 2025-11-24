@@ -1,3 +1,6 @@
+# Standard library
+import datetime as dt
+
 # Third Party
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -22,10 +25,21 @@ class SimpleTypedJSONModel(models.Model):
     typed_field = TypedJSONField(type=SimpleType)
 
 
+class TypeWithDateTimes(pydantic.BaseModel):
+    my_datetime: dt.datetime
+
+
+class ModelWithDateTime(models.Model):
+    class Meta:
+        app_label = "fields_of_gold"
+
+    datetime_field = TypedJSONField(type=TypeWithDateTimes)
+
+
 class TypedJSONFieldTestCase(ExtraModelsTestCase):
     """Tests for the TypedJSONField."""
 
-    test_models = [SimpleTypedJSONModel]
+    test_models = [SimpleTypedJSONModel, ModelWithDateTime]
 
     def test_basic_usage(self):
         instance = SimpleTypedJSONModel()
@@ -62,3 +76,18 @@ class TypedJSONFieldTestCase(ExtraModelsTestCase):
         self.assertRaisesRegex(ValidationError, r"typed_field.+cannot be null", instance.full_clean)
         instance.typed_field = SimpleType(my_int=1, my_str="cake")
         instance.full_clean()
+
+    def test_modifying_and_resaving(self):
+        """Regression test for an issue where modifying a field in the object and resaving would
+        cause a a JSON encoding error.
+        """
+        instance = ModelWithDateTime(datetime_field=TypeWithDateTimes(my_datetime=dt.datetime.now()))
+        instance.save()
+        instance.refresh_from_db()
+        self.assertIsInstance(instance.datetime_field, TypeWithDateTimes)
+        self.assertIsInstance(instance.datetime_field.my_datetime, dt.datetime)
+        instance.datetime_field.my_datetime = dt.datetime.now()
+        instance.save()
+        instance.refresh_from_db()
+        self.assertIsInstance(instance.datetime_field, TypeWithDateTimes)
+        self.assertIsInstance(instance.datetime_field.my_datetime, dt.datetime)

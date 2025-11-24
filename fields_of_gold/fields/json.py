@@ -103,14 +103,6 @@ class TypedJSONField(JSONField):
     #     self.validate()
     #     pass
 
-    def get_db_prep_value(self, value, connection, prepared=False):
-        if isinstance(value, self.type):
-            value = value.model_dump()
-        return super().get_db_prep_value(value, connection, prepared)
-        # if isinstance(value, self.type):
-        #     return value.model_dump_json()
-        # return value
-
     # We might need to override this
     # def value_to_string(self, obj):
     #     """
